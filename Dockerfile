@@ -36,7 +36,7 @@ RUN cd ${COMFY_DIR}/custom_nodes && \
 
 # ─── Install Custom Nodes (required by workflow) ──────────────────────────────
 COPY scripts/install_custom_nodes.sh /tmp/install_custom_nodes.sh
-RUN chmod +x /tmp/install_custom_nodes.sh && /tmp/install_custom_nodes.sh
+RUN chmod +x /tmp/install_custom_nodes.sh && bash /tmp/install_custom_nodes.sh
 
 # ─── Install RunPod SDK ───────────────────────────────────────────────────────
 RUN pip install runpod requests
