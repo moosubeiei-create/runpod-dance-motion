@@ -1,0 +1,8 @@
+.git
+.gitignore
+README.md
+dance-motion-ui.html
+*.md
+__pycache__
+*.pyc
+.env

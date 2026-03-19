@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Dance Motion Generator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f13;
+    --surface: #18181f;
+    --surface2: #22222c;
+    --border: rgba(255,255,255,0.1);
+    --purple: #7c5af0;
+    --purple-light: #9b7ef8;
+    --teal: #22d3a5;
+    --text: #e8e6f0;
+    --text2: #8b89a0;
+    --danger: #f06060;
+    --success: #22d3a5;
+    --radius: 12px;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--purple), var(--teal));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  .main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    flex: 1;
+    max-height: calc(100vh - 89px);
+    overflow: hidden;
+  }
+
+  /* Left Panel */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  /* API Config */
+  .config-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 6px; }
+  input[type="text"], input[type="password"], select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--purple); }
+  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Upload method tabs */
+  .upload-method-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .upload-method-tab {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .upload-method-tab.active {
+    background: var(--purple);
+    color: white;
+  }
+
+  /* URL input for upload */
+  .url-input-group {
+    display: none;
+    margin-top: 10px;
+  }
+  .url-input-group.active { display: block; }
+
+  /* Upload Zones */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--purple);
+    background: rgba(124,90,240,0.05);
+  }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-label { font-size: 13px; font-weight: 500; }
+  .upload-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .upload-preview {
+    display: none;
+    margin-top: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface2);
+  }
+  .upload-preview img, .upload-preview video {
+    width: 100%; max-height: 180px; object-fit: contain; display: block;
+  }
+  .upload-preview .file-name {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .remove-file {
+    background: none; border: none; color: var(--danger);
+    cursor: pointer; font-size: 16px; line-height: 1;
+  }
+
+  /* Advanced Settings */
+  .advanced-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 13px;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+  }
+  .advanced-toggle:hover { background: var(--surface); }
+  .advanced-body {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 16px;
+    margin-top: -1px;
+  }
+  .advanced-body.open { display: block; }
+
+  /* Slider */
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .slider-row label { min-width: 110px; margin: 0; }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--purple);
+  }
+  .slider-val { min-width: 44px; text-align: right; font-size: 13px; font-weight: 500; color: var(--purple-light); }
+
+  /* Buttons */
+  .btn-generate {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--purple), #5a3fd4);
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-generate:hover { opacity: 0.9; }
+  .btn-generate:active { transform: scale(0.99); }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-test-conn {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .btn-test-conn:hover { border-color: var(--purple); color: var(--purple-light); }
+
+  /* Right Panel */
+  .right-panel {
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Status Card */
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .status-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text2);
+    flex-shrink: 0;
+  }
+  .status-dot.running { background: var(--purple); animation: pulse 1.5s infinite; }
+  .status-dot.done { background: var(--success); }
+  .status-dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .status-text { font-weight: 500; font-size: 15px; }
+  .job-id { font-size: 12px; color: var(--text2); font-family: monospace; margin-top: 2px; }
+
+  /* Progress bar */
+  .progress-bar {
+    background: var(--surface2);
+    border-radius: 100px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+    border-radius: 100px;
+    width: 0%;
+    transition: width 0.5s;
+  }
+  .progress-fill.indeterminate {
+    width: 40%;
+    animation: slide 1.5s infinite;
+  }
+  @keyframes slide { 0%{margin-left:-40%} 100%{margin-left:100%} }
+
+  .log-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text2);
+    max-height: 180px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log-entry { padding: 2px 0; }
+  .log-entry.info { color: var(--text2); }
+  .log-entry.success { color: var(--success); }
+  .log-entry.error { color: var(--danger); }
+  .log-entry.highlight { color: var(--purple-light); }
+
+  /* Result Card */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid rgba(34,211,165,0.3);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: none;
+  }
+  .result-card.visible { display: block; }
+  .result-card h3 { font-size: 15px; margin-bottom: 16px; color: var(--teal); }
+  .result-video {
+    width: 100%;
+    border-radius: 8px;
+    background: #000;
+    max-height: 480px;
+  }
+  .result-actions {
+    display: flex; gap: 10px; margin-top: 14px;
+  }
+  .btn-download, .btn-retry {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    transition: opacity 0.2s;
+  }
+  .btn-download {
+    background: var(--teal);
+    color: #0f2620;
+  }
+  .btn-retry {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-download:hover, .btn-retry:hover { opacity: 0.85; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 300px;
+    color: var(--text2);
+    text-align: center;
+    gap: 10px;
+  }
+  .empty-icon { font-size: 48px; opacity: 0.4; }
+  .empty-title { font-size: 16px; font-weight: 500; }
+  .empty-sub { font-size: 13px; opacity: 0.7; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(124,90,240,0.15);
+    color: var(--purple-light);
+    border: 1px solid rgba(124,90,240,0.3);
+  }
+
+  /* Save config toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text);
+    z-index: 100;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Endpoint info card */
+  .endpoint-info {
+    background: rgba(124,90,240,0.05);
+    border: 1px solid rgba(124,90,240,0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 8px;
+    display: none;
+  }
+  .endpoint-info.visible { display: block; }
+  .endpoint-info strong { color: var(--purple-light); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🎬</div>
+  <div>
+    <h1>AI Dance Motion Generator</h1>
+    <p>Powered by RunPod Serverless + ComfyUI WanVideo</p>
+  </div>
+  <div style="margin-left:auto">
+    <span class="badge" id="conn-badge">Not connected</span>
+  </div>
+</header>
+
+<div class="main">
+  <!-- LEFT: Controls -->
+  <div class="left-panel">
+
+    <!-- API Config -->
+    <div class="config-section">
+      <div class="section-title">RunPod Serverless Configuration</div>
+      <label>API Key</label>
+      <input type="password" id="api-key" placeholder="rp_xxxxxxxxxxxxxxxxxxxx" style="margin-bottom:12px">
+      <label>Endpoint ID</label>
+      <input type="text" id="endpoint-id" placeholder="xxxxxxxxxxxxxxxx" style="margin-bottom:4px">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">
+        RunPod Dashboard → Serverless → Endpoints → ID
+      </div>
+      <div class="endpoint-info" id="endpoint-info">
+        <strong>Endpoint:</strong> <span id="endpoint-url-display"></span>
+      </div>
+      <button class="btn-test-conn" onclick="testConnection()">
+        Test Connection
+      </button>
+    </div>
+
+    <!-- Face Image Upload -->
+    <div>
+      <div class="section-title">Reference Face Image</div>
+      <div class="upload-method-tabs">
+        <button class="upload-method-tab active" onclick="switchUploadMethod('face','file',this)">File Upload</button>
+        <button class="upload-method-tab" onclick="switchUploadMethod('face','url',this)">URL</button>
+      </div>
+      <div class="upload-zone" id="face-zone">
+        <input type="file" id="face-input" accept="image/*">
+        <div class="upload-icon">🧑‍🦱</div>
+        <div class="upload-label">Drop face photo here</div>
+        <div class="upload-sub">JPG, PNG — ใบหน้าชัด, ไฟล์เดียว</div>
+        <div class="upload-preview" id="face-preview">
+          <img id="face-img" src="" alt="">
+          <div class="file-name">
+            <span id="face-name"></span>
+            <button class="remove-file" onclick="clearFile('face')">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="url-input-group" id="face-url-group">
+        <input type="text" id="face-url" placeholder="https://example.com/face.jpg">
+      </div>
+    </div>
+
+    <!-- Dance Video Upload -->
+    <div>
+      <div class="section-title">Dance Video (Reference Motion)</div>
+      <div class="upload-method-tabs">
+        <button class="upload-method-tab active" onclick="switchUploadMethod('dance','file',this)">File Upload</button>
+        <button class="upload-method-tab" onclick="switchUploadMethod('dance','url',this)">URL</button>
+      </div>
+      <div class="upload-zone" id="dance-zone">
+        <input type="file" id="dance-input" accept="video/*">
+        <div class="upload-icon">🎵</div>
+        <div class="upload-label">Drop dance video here</div>
+        <div class="upload-sub">MP4, MOV — วิดีโอการเต้น</div>
+        <div class="upload-preview" id="dance-preview">
+          <video id="dance-video" controls muted></video>
+          <div class="file-name">
+            <span id="dance-name"></span>
+            <button class="remove-file" onclick="clearFile('dance')">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="url-input-group" id="dance-url-group">
+        <input type="text" id="dance-url" placeholder="https://example.com/dance.mp4">
+      </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <div>
+      <button class="advanced-toggle" onclick="toggleAdvanced()">
+        <span>Advanced Settings</span>
+        <span id="adv-arrow">▸</span>
+      </button>
+      <div class="advanced-body" id="adv-body">
+        <div class="slider-row">
+          <label>Width</label>
+          <input type="range" id="s-width" min="256" max="1024" step="64" value="608"
+            oninput="document.getElementById('v-width').textContent=this.value">
+          <span class="slider-val" id="v-width">608</span>
+        </div>
+        <div class="slider-row">
+          <label>Height</label>
+          <input type="range" id="s-height" min="256" max="1280" step="64" value="1088"
+            oninput="document.getElementById('v-height').textContent=this.value">
+          <span class="slider-val" id="v-height">1088</span>
+        </div>
+        <div class="slider-row">
+          <label>Frame rate</label>
+          <input type="range" id="s-fps" min="8" max="30" step="1" value="30"
+            oninput="document.getElementById('v-fps').textContent=this.value">
+          <span class="slider-val" id="v-fps">30</span>
+        </div>
+        <div class="slider-row">
+          <label>Steps</label>
+          <input type="range" id="s-steps" min="1" max="50" step="1" value="4"
+            oninput="document.getElementById('v-steps').textContent=this.value">
+          <span class="slider-val" id="v-steps">4</span>
+        </div>
+        <div class="slider-row">
+          <label>CFG Scale</label>
+          <input type="range" id="s-cfg" min="0.5" max="15" step="0.5" value="1"
+            oninput="document.getElementById('v-cfg').textContent=this.value">
+          <span class="slider-val" id="v-cfg">1</span>
+        </div>
+        <div style="margin-top: 8px;">
+          <label>Positive Prompt</label>
+          <input type="text" id="positive-prompt" placeholder="the woman is dancing to camera" style="margin-bottom:10px">
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;margin-bottom:4px">
+          Leave empty for default prompt
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate Button -->
+    <button class="btn-generate" id="gen-btn" onclick="startGeneration()">
+      🚀 Generate Dance Video
+    </button>
+
+  </div>
+
+  <!-- RIGHT: Status + Result -->
+  <div class="right-panel">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">🎬</div>
+      <div class="empty-title">Ready to generate</div>
+      <div class="empty-sub">อัปโหลดรูปหน้าและวิดีโอเต้น<br>จากนั้นกด Generate</div>
+    </div>
+
+    <!-- Status Card (hidden initially) -->
+    <div class="status-card" id="status-card" style="display:none">
+      <div class="status-header">
+        <div class="status-dot" id="status-dot"></div>
+        <div>
+          <div class="status-text" id="status-text">Initializing...</div>
+          <div class="job-id" id="job-id-display"></div>
+        </div>
+        <button id="cancel-btn" onclick="cancelJob()"
+          style="margin-left:auto;background:rgba(240,96,96,0.1);border:1px solid rgba(240,96,96,0.3);color:var(--danger);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;display:none">
+          Cancel
+        </button>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="result-card" id="result-card">
+      <h3>✅ Generation Complete</h3>
+      <video class="result-video" id="result-video" controls></video>
+      <div class="result-actions">
+        <a class="btn-download" id="download-link" href="#" download="dance_output.mp4">
+          ⬇ Download MP4
+        </a>
+        <button class="btn-retry" onclick="resetUI()">🔄 Generate Another</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let faceFile = null, danceFile = null;
+let faceMethod = 'file', danceMethod = 'file';  // 'file' or 'url'
+let currentJobId = null;
+let pollInterval = null;
+let isCancelled = false;
+
+// ─── LocalStorage: persist API config ────────────────────────────────────────
+function loadConfig() {
+  const key = localStorage.getItem('runpod_api_key');
+  const ep  = localStorage.getItem('runpod_endpoint_id');
+  if (key) document.getElementById('api-key').value = key;
+  if (ep)  document.getElementById('endpoint-id').value = ep;
+  updateBadge();
+}
+function saveConfig() {
+  localStorage.setItem('runpod_api_key', document.getElementById('api-key').value.trim());
+  localStorage.setItem('runpod_endpoint_id', document.getElementById('endpoint-id').value.trim());
+}
+
+// ─── Upload method switching ─────────────────────────────────────────────────
+function switchUploadMethod(type, method, btn) {
+  // Update tabs
+  const tabs = btn.parentElement.querySelectorAll('.upload-method-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (type === 'face') {
+    faceMethod = method;
+    document.getElementById('face-zone').style.display = method === 'file' ? '' : 'none';
+    document.getElementById('face-url-group').classList.toggle('active', method === 'url');
+  } else {
+    danceMethod = method;
+    document.getElementById('dance-zone').style.display = method === 'file' ? '' : 'none';
+    document.getElementById('dance-url-group').classList.toggle('active', method === 'url');
+  }
+}
+
+// ─── File Upload Handling ─────────────────────────────────────────────────────
+function setupDrop(zoneId, inputId, type) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(type, file);
+  });
+  document.getElementById(inputId).addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(type, e.target.files[0]);
+  });
+}
+
+function handleFile(type, file) {
+  if (type === 'face') {
+    faceFile = file;
+    document.getElementById('face-name').textContent = file.name;
+    document.getElementById('face-img').src = URL.createObjectURL(file);
+    document.getElementById('face-preview').style.display = 'block';
+    document.querySelector('#face-zone .upload-icon').style.display = 'none';
+    document.querySelector('#face-zone .upload-label').style.display = 'none';
+    document.querySelector('#face-zone .upload-sub').style.display = 'none';
+  } else {
+    danceFile = file;
+    document.getElementById('dance-name').textContent = file.name;
+    document.getElementById('dance-video').src = URL.createObjectURL(file);
+    document.getElementById('dance-preview').style.display = 'block';
+    document.querySelector('#dance-zone .upload-icon').style.display = 'none';
+    document.querySelector('#dance-zone .upload-label').style.display = 'none';
+    document.querySelector('#dance-zone .upload-sub').style.display = 'none';
+  }
+}
+
+function clearFile(type) {
+  event.stopPropagation();
+  if (type === 'face') {
+    faceFile = null;
+    document.getElementById('face-preview').style.display = 'none';
+    document.getElementById('face-input').value = '';
+    document.querySelector('#face-zone .upload-icon').style.display = '';
+    document.querySelector('#face-zone .upload-label').style.display = '';
+    document.querySelector('#face-zone .upload-sub').style.display = '';
+  } else {
+    danceFile = null;
+    document.getElementById('dance-preview').style.display = 'none';
+    document.getElementById('dance-input').value = '';
+    document.querySelector('#dance-zone .upload-icon').style.display = '';
+    document.querySelector('#dance-zone .upload-label').style.display = '';
+    document.querySelector('#dance-zone .upload-sub').style.display = '';
+  }
+}
+
+setupDrop('face-zone', 'face-input', 'face');
+setupDrop('dance-zone', 'dance-input', 'dance');
+
+// ─── Advanced Toggle ──────────────────────────────────────────────────────────
+function toggleAdvanced() {
+  const body = document.getElementById('adv-body');
+  const arrow = document.getElementById('adv-arrow');
+  body.classList.toggle('open');
+  arrow.textContent = body.classList.contains('open') ? '▾' : '▸';
+}
+
+// ─── Convert file to base64 ───────────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ─── Logging ──────────────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const box = document.getElementById('log-box');
+  const ts = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const el = document.createElement('div');
+  el.className = `log-entry ${type}`;
+  el.textContent = `[${ts}] ${msg}`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ─── Toast notification ──────────────────────────────────────────────────────
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ─── Test Connection ─────────────────────────────────────────────────────────
+async function testConnection() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  const endpointId = document.getElementById('endpoint-id').value.trim();
+  if (!apiKey || !endpointId) {
+    showToast('กรุณากรอก API Key และ Endpoint ID');
+    return;
+  }
+  saveConfig();
+  try {
+    const resp = await fetch(
+      `https://api.runpod.io/v2/${endpointId}/health`,
+      { headers: { 'Authorization': `Bearer ${apiKey}` } }
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      showToast(`✓ Connected! Workers: ${data.workers?.running || 0} running, ${data.workers?.idle || 0} idle`);
+      document.getElementById('endpoint-info').classList.add('visible');
+      document.getElementById('endpoint-url-display').textContent =
+        `https://api.runpod.io/v2/${endpointId}`;
+    } else {
+      const err = await resp.text();
+      showToast(`✗ Error ${resp.status}: ${err}`);
+    }
+  } catch (e) {
+    showToast(`✗ Connection failed: ${e.message}`);
+  }
+}
+
+// ─── Build payload ───────────────────────────────────────────────────────────
+async function buildPayload() {
+  const payload = {
+    input: {
+      width:      parseInt(document.getElementById('s-width').value),
+      height:     parseInt(document.getElementById('s-height').value),
+      frame_rate: parseInt(document.getElementById('s-fps').value),
+      steps:      parseInt(document.getElementById('s-steps').value),
+      cfg:        parseFloat(document.getElementById('s-cfg').value),
+    }
+  };
+
+  // Optional positive prompt
+  const posPrompt = document.getElementById('positive-prompt').value.trim();
+  if (posPrompt) payload.input.positive_prompt = posPrompt;
+
+  // Face image
+  if (faceMethod === 'url') {
+    const url = document.getElementById('face-url').value.trim();
+    if (!url) throw new Error('กรุณาใส่ URL ของรูปใบหน้า');
+    payload.input.face_image_url = url;
+    log(`Face image URL: ${url}`, 'info');
+  } else {
+    if (!faceFile) throw new Error('กรุณาอัปโหลดรูปใบหน้า');
+    const b64 = await fileToBase64(faceFile);
+    payload.input.face_image_base64 = b64;
+    log(`✓ Face image: ${(faceFile.size / 1024).toFixed(0)} KB`, 'success');
+  }
+
+  // Dance video
+  if (danceMethod === 'url') {
+    const url = document.getElementById('dance-url').value.trim();
+    if (!url) throw new Error('กรุณาใส่ URL ของวิดีโอเต้น');
+    payload.input.dance_video_url = url;
+    log(`Dance video URL: ${url}`, 'info');
+  } else {
+    if (!danceFile) throw new Error('กรุณาอัปโหลดวิดีโอเต้น');
+    const b64 = await fileToBase64(danceFile);
+    payload.input.dance_video_base64 = b64;
+    log(`✓ Dance video: ${(danceFile.size / 1024 / 1024).toFixed(1)} MB`, 'success');
+  }
+
+  return payload;
+}
+
+// ─── Main Generation Flow ─────────────────────────────────────────────────────
+async function startGeneration() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  const endpointId = document.getElementById('endpoint-id').value.trim();
+
+  if (!apiKey || !endpointId) { alert('กรุณากรอก API Key และ Endpoint ID'); return; }
+
+  saveConfig();
+  isCancelled = false;
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('result-card').classList.remove('visible');
+  document.getElementById('status-card').style.display = 'block';
+  document.getElementById('cancel-btn').style.display = 'inline-block';
+  document.getElementById('log-box').innerHTML = '';
+  setStatus('running', 'Preparing input...');
+  log('เริ่มต้น: เตรียมข้อมูล', 'highlight');
+
+  try {
+    // 1. Build payload (base64 or URL)
+    const payload = await buildPayload();
+
+    if (isCancelled) return;
+
+    // 2. Submit job
+    setStatus('running', 'Submitting job to RunPod Serverless...');
+    log('ส่ง job ไป RunPod Serverless endpoint...', 'highlight');
+
+    const runResp = await fetch(
+      `https://api.runpod.io/v2/${endpointId}/run`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    if (!runResp.ok) {
+      const err = await runResp.text();
+      throw new Error(`RunPod error ${runResp.status}: ${err}`);
+    }
+
+    const runData = await runResp.json();
+    currentJobId = runData.id;
+    document.getElementById('job-id-display').textContent = `Job ID: ${currentJobId}`;
+    log(`✓ Job accepted: ${currentJobId}`, 'success');
+
+    // 3. Poll status
+    setStatus('running', 'In queue...');
+    setProgress(true);
+    pollForResult(apiKey, endpointId);
+
+  } catch (err) {
+    setStatus('error', 'Error: ' + err.message);
+    log('❌ ' + err.message, 'error');
+    document.getElementById('gen-btn').disabled = false;
+    document.getElementById('cancel-btn').style.display = 'none';
+    setProgress(false, 0);
+  }
+}
+
+// ─── Polling ──────────────────────────────────────────────────────────────────
+function pollForResult(apiKey, endpointId) {
+  let attempts = 0;
+  const startTime = Date.now();
+
+  pollInterval = setInterval(async () => {
+    if (isCancelled) { clearInterval(pollInterval); return; }
+    attempts++;
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+    try {
+      const resp = await fetch(
+        `https://api.runpod.io/v2/${endpointId}/status/${currentJobId}`,
+        { headers: { 'Authorization': `Bearer ${apiKey}` } }
+      );
+      const data = await resp.json();
+      const s = data.status;
+
+      if (s === 'IN_QUEUE') {
+        setStatus('running', `In queue — รอ GPU ว่าง... (${elapsed}s)`);
+        if (attempts % 5 === 0) log(`Polling #${attempts}: IN_QUEUE (${elapsed}s)`);
+      } else if (s === 'IN_PROGRESS') {
+        setStatus('running', `Generating video — อาจใช้เวลา 3-10 นาที... (${elapsed}s)`);
+        if (attempts === 1 || data.status !== 'IN_PROGRESS') {
+          log('⚡ GPU เริ่มทำงาน', 'success');
+        }
+        if (attempts % 5 === 0) log(`Polling #${attempts}: IN_PROGRESS (${elapsed}s)`);
+      } else if (s === 'COMPLETED') {
+        clearInterval(pollInterval);
+        setProgress(false, 100);
+        log(`✅ COMPLETED in ${elapsed}s`, 'success');
+        handleResult(data.output);
+      } else if (s === 'FAILED') {
+        clearInterval(pollInterval);
+        setProgress(false, 0);
+        setStatus('error', 'Failed: ' + (data.error || 'Unknown error'));
+        log('❌ Job failed: ' + (data.error || JSON.stringify(data.output) || ''), 'error');
+        document.getElementById('gen-btn').disabled = false;
+        document.getElementById('cancel-btn').style.display = 'none';
+      } else if (s === 'CANCELLED') {
+        clearInterval(pollInterval);
+        setStatus('error', 'Cancelled');
+        log('Job was cancelled.', 'error');
+        document.getElementById('gen-btn').disabled = false;
+        document.getElementById('cancel-btn').style.display = 'none';
+        setProgress(false, 0);
+      }
+    } catch (err) {
+      log('⚠ Poll error: ' + err.message, 'error');
+    }
+  }, 3000);
+}
+
+// ─── Handle Result ────────────────────────────────────────────────────────────
+function handleResult(output) {
+  setStatus('done', 'Complete!');
+  document.getElementById('cancel-btn').style.display = 'none';
+  document.getElementById('gen-btn').disabled = false;
+
+  let videoSrc = null;
+
+  if (output && output.video_url) {
+    videoSrc = output.video_url;
+    log('📹 Video URL: ' + output.video_url, 'success');
+  } else if (output && output.video_base64) {
+    videoSrc = `data:video/mp4;base64,${output.video_base64}`;
+    log(`📹 Video received (base64, ${output.size_mb || '?'} MB)`, 'success');
+  } else if (output && output.message) {
+    videoSrc = output.message;
+    log('📹 Output: ' + output.message, 'success');
+  }
+
+  // Show error from handler if present
+  if (output && output.error) {
+    log('⚠ Handler error: ' + output.error, 'error');
+    if (output.raw_outputs) {
+      log('Raw outputs: ' + JSON.stringify(output.raw_outputs).substring(0, 200), 'info');
+    }
+  }
+
+  if (videoSrc) {
+    document.getElementById('result-video').src = videoSrc;
+    document.getElementById('download-link').href = videoSrc;
+    document.getElementById('result-card').classList.add('visible');
+    log('🎉 ดาวน์โหลดวิดีโอได้แล้ว!', 'success');
+  } else if (!output || !output.error) {
+    log('⚠ ไม่พบ video URL ใน output — ตรวจสอบ worker output format', 'error');
+    log(JSON.stringify(output).substring(0, 500), 'info');
+  }
+}
+
+// ─── Cancel ───────────────────────────────────────────────────────────────────
+async function cancelJob() {
+  if (!currentJobId) return;
+  isCancelled = true;
+  clearInterval(pollInterval);
+  const apiKey = document.getElementById('api-key').value;
+  const endpointId = document.getElementById('endpoint-id').value;
+  try {
+    await fetch(
+      `https://api.runpod.io/v2/${endpointId}/cancel/${currentJobId}`,
+      { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` } }
+    );
+    log('Job cancelled.', 'error');
+  } catch(e) {}
+  setStatus('error', 'Cancelled');
+  document.getElementById('cancel-btn').style.display = 'none';
+  document.getElementById('gen-btn').disabled = false;
+  setProgress(false, 0);
+}
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot ' + (state === 'running' ? 'running' : state === 'done' ? 'done' : 'error');
+  document.getElementById('status-text').textContent = text;
+}
+
+function setProgress(indeterminate, pct = 0) {
+  const fill = document.getElementById('progress-fill');
+  fill.classList.toggle('indeterminate', indeterminate);
+  if (!indeterminate) fill.style.width = pct + '%';
+}
+
+function resetUI() {
+  document.getElementById('result-card').classList.remove('visible');
+  document.getElementById('status-card').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('gen-btn').disabled = false;
+  currentJobId = null;
+}
+
+// ─── Connection badge ─────────────────────────────────────────────────────────
+document.getElementById('api-key').addEventListener('input', () => { updateBadge(); saveConfig(); });
+document.getElementById('endpoint-id').addEventListener('input', () => { updateBadge(); saveConfig(); });
+
+function updateBadge() {
+  const hasKey = document.getElementById('api-key').value.trim().length > 10;
+  const hasEp  = document.getElementById('endpoint-id').value.trim().length > 5;
+  const badge = document.getElementById('conn-badge');
+  badge.textContent = (hasKey && hasEp) ? 'Ready' : 'Not connected';
+  badge.style.background = (hasKey && hasEp) ? 'rgba(34,211,165,0.15)' : 'rgba(124,90,240,0.15)';
+  badge.style.color = (hasKey && hasEp) ? 'var(--teal)' : 'var(--purple-light)';
+  badge.style.borderColor = (hasKey && hasEp) ? 'rgba(34,211,165,0.3)' : 'rgba(124,90,240,0.3)';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadConfig();
+</script>
+</body>
+</html>
