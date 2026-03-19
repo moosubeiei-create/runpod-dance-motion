@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: hashia/dance-motion-runpod
+  DOCKER_IMAGE: moosubdance/dance-motion-runpod
 
 jobs:
   build-and-push:
