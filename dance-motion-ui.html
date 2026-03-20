@@ -607,6 +607,11 @@ let currentJobId = null;
 let pollInterval = null;
 let isCancelled = false;
 
+// ─── API URL builder (uses local proxy to bypass CORS) ───────────────────────
+function rpUrl(endpointId, action) {
+  return `/api/runpod/${endpointId}/${action}`;
+}
+
 // ─── LocalStorage: persist API config ────────────────────────────────────────
 function loadConfig() {
   const key = localStorage.getItem('runpod_api_key');
@@ -741,22 +746,36 @@ async function testConnection() {
     return;
   }
   saveConfig();
+
+  const testUrl = rpUrl(endpointId, 'health');
+  console.log('Testing connection via proxy:', testUrl);
+
   try {
-    const resp = await fetch(
-      `https://api.runpod.io/v2/${endpointId}/health`,
-      { headers: { 'Authorization': `Bearer ${apiKey}` } }
-    );
+    const resp = await fetch(testUrl, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    console.log('Response status:', resp.status);
+
     if (resp.ok) {
       const data = await resp.json();
+      console.log('Health data:', data);
       showToast(`✓ Connected! Workers: ${data.workers?.running || 0} running, ${data.workers?.idle || 0} idle`);
       document.getElementById('endpoint-info').classList.add('visible');
       document.getElementById('endpoint-url-display').textContent =
         `https://api.runpod.io/v2/${endpointId}`;
     } else {
       const err = await resp.text();
-      showToast(`✗ Error ${resp.status}: ${err}`);
+      console.log('Error response:', err);
+      if (resp.status === 401) {
+        showToast(`✗ API Key ไม่ถูกต้อง (401 Unauthorized)`);
+      } else if (resp.status === 404) {
+        showToast(`✗ Endpoint ID ไม่ถูกต้อง (404 Not Found) — ตรวจสอบ Endpoint ID ใน RunPod Dashboard`);
+      } else {
+        showToast(`✗ Error ${resp.status}: ${err}`);
+      }
     }
   } catch (e) {
+    console.error('Connection test failed:', e);
     showToast(`✗ Connection failed: ${e.message}`);
   }
 }
@@ -834,20 +853,34 @@ async function startGeneration() {
     setStatus('running', 'Submitting job to RunPod Serverless...');
     log('ส่ง job ไป RunPod Serverless endpoint...', 'highlight');
 
-    const runResp = await fetch(
-      `https://api.runpod.io/v2/${endpointId}/run`,
-      {
+    const jsonBody = JSON.stringify(payload);
+    const sizeMB = (jsonBody.length / 1024 / 1024).toFixed(2);
+    log(`Payload size: ${sizeMB} MB`, 'info');
+
+    const runUrl = rpUrl(endpointId, 'run');
+    log(`POST → /api/runpod/${endpointId}/run (via proxy)`, 'info');
+
+    let runResp;
+    try {
+      runResp = await fetch(runUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify(payload)
-      }
-    );
+        body: jsonBody
+      });
+    } catch (fetchErr) {
+      log(`Network error detail: ${fetchErr.name}: ${fetchErr.message}`, 'error');
+      log(`Endpoint ID used: "${endpointId}"`, 'error');
+      log(`API Key starts with: "${apiKey.substring(0, 8)}..."`, 'error');
+      throw new Error(`Network error: ${fetchErr.message}. ตรวจสอบ API Key และ Endpoint ID`);
+    }
 
     if (!runResp.ok) {
       const err = await runResp.text();
+      log(`Response status: ${runResp.status}`, 'error');
+      log(`Response body: ${err.substring(0, 500)}`, 'error');
       throw new Error(`RunPod error ${runResp.status}: ${err}`);
     }
 
@@ -882,7 +915,7 @@ function pollForResult(apiKey, endpointId) {
 
     try {
       const resp = await fetch(
-        `https://api.runpod.io/v2/${endpointId}/status/${currentJobId}`,
+        rpUrl(endpointId, `status/${currentJobId}`),
         { headers: { 'Authorization': `Bearer ${apiKey}` } }
       );
       const data = await resp.json();
@@ -970,7 +1003,7 @@ async function cancelJob() {
   const endpointId = document.getElementById('endpoint-id').value;
   try {
     await fetch(
-      `https://api.runpod.io/v2/${endpointId}/cancel/${currentJobId}`,
+      rpUrl(endpointId, `cancel/${currentJobId}`),
       { method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}` } }
     );
     log('Job cancelled.', 'error');

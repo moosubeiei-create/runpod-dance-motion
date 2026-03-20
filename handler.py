@@ -138,15 +138,42 @@ def build_api_workflow(
 
 
 # ─── ComfyUI job execution ────────────────────────────────────────────────────
+def validate_workflow(workflow: dict) -> list:
+    """Check if all node class_types are available in ComfyUI."""
+    try:
+        r = requests.get(f"{COMFY_URL}/object_info", timeout=30)
+        if r.status_code != 200:
+            log.warning("Could not fetch /object_info for validation")
+            return []
+        available = set(r.json().keys())
+    except Exception as e:
+        log.warning(f"Workflow validation skipped: {e}")
+        return []
+
+    missing = []
+    for nid, node in workflow.items():
+        ct = node.get("class_type", "")
+        if ct and ct not in available:
+            missing.append(f"Node {nid}: {ct}")
+    return missing
+
+
 def queue_prompt(workflow: dict) -> str:
     """Queue a prompt and return the prompt_id."""
     client_id = str(uuid.uuid4())
     payload = {"prompt": workflow, "client_id": client_id}
     r = requests.post(f"{COMFY_URL}/prompt", json=payload, timeout=30)
-    r.raise_for_status()
+    if r.status_code != 200:
+        try:
+            err_data = r.json()
+        except Exception:
+            err_data = r.text
+        log.error(f"ComfyUI /prompt returned {r.status_code}: {json.dumps(err_data, indent=2, ensure_ascii=False) if isinstance(err_data, dict) else err_data}")
+        raise RuntimeError(f"ComfyUI /prompt {r.status_code}: {json.dumps(err_data, ensure_ascii=False) if isinstance(err_data, dict) else err_data}")
     data = r.json()
     if "error" in data:
-        raise RuntimeError(f"ComfyUI prompt error: {data['error']}")
+        log.error(f"ComfyUI prompt error: {json.dumps(data, indent=2, ensure_ascii=False)}")
+        raise RuntimeError(f"ComfyUI prompt error: {json.dumps(data, ensure_ascii=False)}")
     prompt_id = data["prompt_id"]
     log.info(f"Queued prompt: {prompt_id}")
     return prompt_id
@@ -318,6 +345,12 @@ def handler(job: dict) -> dict:
     # ── Strip _meta from all nodes (ComfyUI API rejects unknown keys) ─────
     for nid in list(workflow.keys()):
         workflow[nid].pop("_meta", None)
+
+    # ── Validate workflow against available nodes ─────────────────────────
+    missing_nodes = validate_workflow(workflow)
+    if missing_nodes:
+        log.error(f"Missing ComfyUI nodes: {missing_nodes}")
+        return {"error": f"Missing ComfyUI custom nodes: {', '.join(missing_nodes)}"}
 
     # ── Queue and run ─────────────────────────────────────────────────────────
     try:
