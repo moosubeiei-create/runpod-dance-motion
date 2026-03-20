@@ -35,9 +35,8 @@ RUN cd ${COMFY_DIR}/custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git
 
 # ─── Install Custom Nodes (required by workflow) ──────────────────────────────
-# Cache bust: v3 — fixed SAM2 + WanAnimatePreprocess repo URLs (kijai)
 COPY scripts/install_custom_nodes.sh /tmp/install_custom_nodes.sh
-RUN chmod +x /tmp/install_custom_nodes.sh && bash /tmp/install_custom_nodes.sh
+RUN echo "CACHE_BUST=v5" && chmod +x /tmp/install_custom_nodes.sh && bash /tmp/install_custom_nodes.sh
 
 # ─── Install RunPod SDK ───────────────────────────────────────────────────────
 RUN pip install runpod requests
