@@ -341,6 +341,9 @@ def handler(job: dict) -> dict:
     except Exception as e:
         log.error(f"Workflow build failed: {e}")
         return {"error": f"Failed to build workflow: {str(e)}"}
+    # ── Strip _meta from all nodes (ComfyUI API rejects unknown keys) ─────
+    for nid in list(workflow.keys()):
+        workflow[nid].pop("_meta", None)
 
     # ── Strip _meta from all nodes (ComfyUI API rejects unknown keys) ─────
     for nid in list(workflow.keys()):
