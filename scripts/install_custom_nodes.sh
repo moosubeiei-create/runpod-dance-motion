@@ -29,19 +29,20 @@ clone_and_install "ComfyUI-KJNodes" "https://github.com/kijai/ComfyUI-KJNodes.gi
 # 3. ComfyUI-WanVideoWrapper (WanVideoSampler, WanVideoModelLoader)
 clone_and_install "ComfyUI-WanVideoWrapper" "https://github.com/kijai/ComfyUI-WanVideoWrapper.git"
 
-# 4. comfyui-wananimatepreprocess (PoseAndFaceDetection, OnnxDetectionModelLoader)
-clone_and_install "comfyui-wananimatepreprocess" "https://github.com/facok/comfyui-wananimatepreprocess.git"
+# 4. ComfyUI-WanAnimatePreprocess (PoseAndFaceDetection, OnnxDetectionModelLoader)
+clone_and_install "ComfyUI-WanAnimatePreprocess" "https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git"
 
 # 5. comfyui_controlnet_aux (DWPreprocessor)
 clone_and_install "comfyui_controlnet_aux" "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
 
-# 6. ComfyUI-SAM2 (SAM2 segmentation for face lock)
-clone_and_install "ComfyUI-SAM2" "https://github.com/neverbiasu/ComfyUI-SAM2.git"
+# 6. ComfyUI-segment-anything-2 (DownloadAndLoadSAM2Model, Sam2Segmentation)
+clone_and_install "ComfyUI-segment-anything-2" "https://github.com/kijai/ComfyUI-segment-anything-2.git"
 
 # 7. ComfyUI-Florence2 (optional, for face detection fallback)
 clone_and_install "ComfyUI-Florence2" "https://github.com/kijai/ComfyUI-Florence2.git"
 
-# Install ONNX Runtime for pose detection
+# Install ONNX Runtime and other dependencies
 pip install onnxruntime-gpu || true
+pip install opencv-python || true
 
 echo "=== Custom Nodes installation complete ==="
