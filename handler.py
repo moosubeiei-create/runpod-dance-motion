@@ -315,6 +315,10 @@ def handler(job: dict) -> dict:
         log.error(f"Workflow build failed: {e}")
         return {"error": f"Failed to build workflow: {str(e)}"}
 
+    # ── Strip _meta from all nodes (ComfyUI API rejects unknown keys) ─────
+    for nid in list(workflow.keys()):
+        workflow[nid].pop("_meta", None)
+
     # ── Queue and run ─────────────────────────────────────────────────────────
     try:
         prompt_id = queue_prompt(workflow)
