@@ -401,6 +401,19 @@ def handler(job: dict) -> dict:
     if "190" not in source_node:
         log.warning(f"Main output (Node 190) not available! Got fallback from Node {source_node}")
         log.warning("This likely means WanVideo sampler did not complete successfully.")
+        # Dump last 100 lines of ComfyUI log to find the actual error
+        try:
+            with open("/tmp/comfy.log", "r") as f:
+                lines = f.readlines()
+                tail = lines[-100:] if len(lines) > 100 else lines
+                log.warning("=== ComfyUI log tail (last 100 lines) ===")
+                for line in tail:
+                    line = line.rstrip()
+                    if line:
+                        log.warning(f"  COMFY: {line}")
+                log.warning("=== End ComfyUI log ===")
+        except Exception as e:
+            log.warning(f"Could not read ComfyUI log: {e}")
 
     try:
         video_b64 = read_as_base64(video_path)
