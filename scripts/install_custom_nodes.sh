@@ -6,28 +6,18 @@ cd "${CUSTOM_DIR}"
 
 echo "=== Installing Custom Nodes ==="
 
-# Remove old incorrect custom node directories from previous builds
-rm -rf "${CUSTOM_DIR}/ComfyUI-SAM2" 2>/dev/null || true
-rm -rf "${CUSTOM_DIR}/comfyui-wananimatepreprocess" 2>/dev/null || true
-
 clone_and_install() {
     local name=$1
     local url=$2
-    echo "→ ${name} from ${url}"
+    echo "→ ${name}"
     if [ -d "${name}" ]; then
-        echo "  Already exists, removing for fresh install..."
-        rm -rf "${name}"
+        echo "  Already exists, skipping..."
+        return 0
     fi
-    git clone --depth 1 "${url}" "${name}" || { echo "  FAILED to clone ${name}"; return 1; }
+    git clone --depth 1 "${url}" "${name}" || { echo "  WARNING: Failed to clone ${name}"; return 0; }
     if [ -f "${name}/requirements.txt" ]; then
-        echo "  Installing requirements..."
-        pip install -r "${name}/requirements.txt" || true
+        pip install -r "${name}/requirements.txt" 2>/dev/null || true
     fi
-    if [ -f "${name}/install.py" ]; then
-        echo "  Running install.py..."
-        cd "${name}" && python install.py && cd "${CUSTOM_DIR}" || true
-    fi
-    echo "  ✓ ${name} installed"
 }
 
 # 1. ComfyUI-VideoHelperSuite (VHS_LoadVideo, VHS_VideoCombine)
