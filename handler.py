@@ -373,11 +373,34 @@ def handler(job: dict) -> dict:
         return {"error": str(e)}
 
     # ── Find and encode output video ──────────────────────────────────────────
+    log.info(f"Output nodes available: {list(outputs.keys())}")
+    for nid, nout in outputs.items():
+        for key in ("gifs", "videos", "images"):
+            if key in nout and nout[key]:
+                log.info(f"  Node {nid}/{key}: {[f.get('filename','?') for f in nout[key]]}")
+
     video_path = find_output_video(outputs)
     if not video_path:
         log.error("No output video found in ComfyUI history")
         log.error(f"Outputs: {json.dumps(outputs, indent=2)}")
         return {"error": "No output video found", "raw_outputs": outputs}
+
+    # Determine which node produced the video
+    video_basename = os.path.basename(video_path)
+    source_node = "unknown"
+    if video_basename.startswith("dance_out_"):
+        source_node = "190 (main output)"
+    elif video_basename.startswith("dance_temp_") or video_basename.startswith("vitpose"):
+        source_node = "174 (vitpose preview)"
+    elif video_basename.startswith("pose_prev_"):
+        source_node = "181 (pose preview)"
+    elif video_basename.startswith("bg_prev_"):
+        source_node = "75 (background preview)"
+    log.info(f"Video source: Node {source_node}")
+
+    if "190" not in source_node:
+        log.warning(f"Main output (Node 190) not available! Got fallback from Node {source_node}")
+        log.warning("This likely means WanVideo sampler did not complete successfully.")
 
     try:
         video_b64 = read_as_base64(video_path)
@@ -394,12 +417,16 @@ def handler(job: dict) -> dict:
             pass
 
     log.info(f"=== Job {job_id} complete ===")
-    return {
+    result = {
         "video_base64": video_b64,
-        "filename":     os.path.basename(video_path),
+        "filename":     video_basename,
         "size_mb":      round(file_size_mb, 2),
         "prompt_id":    prompt_id,
+        "source_node":  source_node,
     }
+    if "190" not in source_node:
+        result["warning"] = f"Main video not generated. Got preview from Node {source_node}. Check ComfyUI logs for WanVideo sampler errors."
+    return result
 
 
 # ─── Entrypoint ───────────────────────────────────────────────────────────────
