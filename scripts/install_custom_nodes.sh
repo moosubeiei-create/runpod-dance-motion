@@ -9,15 +9,21 @@ echo "=== Installing Custom Nodes ==="
 clone_and_install() {
     local name=$1
     local url=$2
-    echo "→ ${name}"
+    echo "→ ${name} from ${url}"
     if [ -d "${name}" ]; then
-        echo "  Already exists, skipping..."
-        return 0
+        echo "  Removing old install for fresh clone..."
+        rm -rf "${name}"
     fi
-    git clone --depth 1 "${url}" "${name}" || { echo "  WARNING: Failed to clone ${name}"; return 0; }
+    git clone --depth 1 "${url}" "${name}" || { echo "  FAILED to clone ${name}"; return 1; }
     if [ -f "${name}/requirements.txt" ]; then
-        pip install -r "${name}/requirements.txt" 2>/dev/null || true
+        echo "  Installing requirements..."
+        pip install -r "${name}/requirements.txt" || true
     fi
+    if [ -f "${name}/install.py" ]; then
+        echo "  Running install.py..."
+        (cd "${name}" && python install.py) || true
+    fi
+    echo "  ✓ ${name} installed"
 }
 
 # 1. ComfyUI-VideoHelperSuite (VHS_LoadVideo, VHS_VideoCombine)
@@ -41,8 +47,28 @@ clone_and_install "ComfyUI-segment-anything-2" "https://github.com/kijai/ComfyUI
 # 7. ComfyUI-Florence2 (optional, for face detection fallback)
 clone_and_install "ComfyUI-Florence2" "https://github.com/kijai/ComfyUI-Florence2.git"
 
-# Install ONNX Runtime and other dependencies
-pip install onnxruntime-gpu || true
+# ─── Install critical dependencies explicitly ─────────────────────────────────
+echo ""
+echo "=== Installing critical Python dependencies ==="
+
+pip install onnxruntime-gpu || pip install onnxruntime || true
 pip install opencv-python || true
+pip install sageattention || true
+pip install diffusers accelerate || true
+pip install segment-anything-2 || true
+pip install einops || true
+pip install kornia || true
+
+echo ""
+echo "=== Verifying custom node directories ==="
+for d in ComfyUI-VideoHelperSuite ComfyUI-KJNodes ComfyUI-WanVideoWrapper \
+         ComfyUI-WanAnimatePreprocess comfyui_controlnet_aux \
+         ComfyUI-segment-anything-2 ComfyUI-Florence2; do
+    if [ -d "${CUSTOM_DIR}/${d}" ]; then
+        echo "  ✓ ${d}"
+    else
+        echo "  ✗ MISSING: ${d}"
+    fi
+done
 
 echo "=== Custom Nodes installation complete ==="
